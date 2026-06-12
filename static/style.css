@@ -1,0 +1,23 @@
+body {
+  text-align: center;
+
+  font-family: Arial;
+
+  background: #ffe6f0;
+}
+
+.galeria {
+  display: grid;
+
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+
+  gap: 20px;
+
+  padding: 20px;
+}
+
+.galeria img {
+  width: 100%;
+
+  border-radius: 15px;
+}
