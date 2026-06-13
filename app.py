@@ -28,7 +28,7 @@ supabase = create_client(
 
 print("Cliente Supabase criado")
 
-print("VERSAO SUPABASE:", supabase.__version__)
+
 
 @app.route("/")
 def index():
