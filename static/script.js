@@ -1,4 +1,4 @@
-const inicio = new Date("2025-10-17T00:00:00");
+const inicio = new Date("2025-10-27T00:00:00");
 
 function atualizarTempo() {
   const agora = new Date();
