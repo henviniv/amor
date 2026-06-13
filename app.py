@@ -17,6 +17,15 @@ supabase = create_client(
     SUPABASE_KEY
 )
 
+print("SUPABASE_URL =", SUPABASE_URL)
+print("SUPABASE_KEY existe =", bool(SUPABASE_KEY))
+
+supabase = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
+)
+
+print("Cliente Supabase criado")
 
 @app.route("/")
 def index():
