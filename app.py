@@ -98,29 +98,29 @@ def upload():
 
     if foto:
 
-        nome = foto.filename
+        import uuid
+
+        nome = f"{uuid.uuid4()}_{foto.filename}"
 
         arquivo = foto.read()
 
-        supabase.storage.from_("fotos").upload(
-            path=nome,
-            file=arquivo,
-            file_options={
-                "content-type": foto.content_type
-            }
+        resposta = supabase.storage.from_("fotos").upload(
+            nome,
+            arquivo
         )
 
+        print("UPLOAD:", resposta)
+
         url = supabase.storage.from_("fotos").get_public_url(nome)
+
+        print("URL:", url)
 
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
         cursor.execute(
-            """
-            INSERT INTO fotos (url)
-            VALUES (?)
-            """,
-            (url,)
+            "INSERT INTO fotos (url) VALUES (?)",
+            (str(url),)
         )
 
         conn.commit()
