@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import os
+import supabase
 from supabase import create_client
 
 app = Flask(__name__)
@@ -26,6 +27,8 @@ supabase = create_client(
 )
 
 print("Cliente Supabase criado")
+
+print("VERSAO SUPABASE:", supabase.__version__)
 
 @app.route("/")
 def index():
