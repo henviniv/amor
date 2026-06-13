@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import os
+from supabase import create_client
 
 app = Flask(__name__)
 
@@ -8,6 +9,13 @@ app.secret_key = "amor_vinicius_taiana"
 
 UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
+)
 
 
 @app.route("/")
@@ -16,7 +24,7 @@ def index():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
-    cursor.execute("SELECT arquivo FROM fotos")
+    cursor.execute("SELECT url FROM fotos")
 
     fotos = cursor.fetchall()
 
@@ -78,22 +86,29 @@ def upload():
 
     if foto:
 
-        caminho = os.path.join(
-            app.config["UPLOAD_FOLDER"],
-            foto.filename
+        nome = foto.filename
+
+        arquivo = foto.read()
+
+        supabase.storage.from_("fotos").upload(
+            path=nome,
+            file=arquivo,
+            file_options={
+                "content-type": foto.content_type
+            }
         )
 
-        foto.save(caminho)
+        url = supabase.storage.from_("fotos").get_public_url(nome)
 
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
         cursor.execute(
             """
-            INSERT INTO fotos (arquivo)
+            INSERT INTO fotos (url)
             VALUES (?)
             """,
-            (foto.filename,)
+            (url,)
         )
 
         conn.commit()

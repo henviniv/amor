@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS fotos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    arquivo TEXT NOT NULL
+    url TEXT NOT NULL
 )
 """)
 

@@ -20,12 +20,7 @@ filename='style.css') }}"
     <div class="galeria">
       {% for foto in fotos %}
 
-      <img
-        src="{{ url_for(
-'static',
-filename='uploads/' + foto[0]
-) }}"
-      />
+      <img src="{{ foto[0] }}" />
 
       {% endfor %}
     </div>
