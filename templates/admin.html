@@ -3,8 +3,18 @@
   <body>
     <h1>Painel do Casal ❤️</h1>
 
+    {% with mensagens = get_flashed_messages() %}
+      {% if mensagens %}
+        <ul>
+          {% for mensagem in mensagens %}
+            <li>{{ mensagem }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
     <form action="/upload" method="POST" enctype="multipart/form-data">
-      <input type="file" name="foto" />
+      <input type="file" name="foto" accept="image/*" required />
 
       <button>Enviar Foto</button>
     </form>

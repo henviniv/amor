@@ -1,33 +1,57 @@
-from flask import Flask, render_template, request, redirect, session
-import sqlite3
+from urllib.parse import urlparse
 import os
-import supabase
+import sqlite3
+import uuid
+
+from flask import Flask, flash, render_template, request, redirect, session
 from supabase import create_client
+
 
 app = Flask(__name__)
 
-app.secret_key = "amor_vinicius_taiana"
+app.secret_key = os.getenv("SECRET_KEY", "amor_vinicius_taiana")
 
 UPLOAD_FOLDER = "static/uploads"
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "fotos")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
 
-print("SUPABASE_URL =", SUPABASE_URL)
-print("SUPABASE_KEY existe =", bool(SUPABASE_KEY))
+def _normalizar_supabase_url(url):
+    if not url:
+        return None
 
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
+    url = url.strip().rstrip("/")
+    if not url:
+        return None
 
-print("Cliente Supabase criado")
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
 
+    parsed_url = urlparse(url)
+    if not parsed_url.netloc:
+        return None
+
+    return url
+
+
+def criar_cliente_supabase():
+    supabase_url = _normalizar_supabase_url(os.getenv("SUPABASE_URL"))
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        print(
+            "Supabase não configurado. Verifique as variáveis "
+            "SUPABASE_URL e SUPABASE_KEY."
+        )
+        return None
+
+    print("SUPABASE_URL configurada para", supabase_url)
+    print("SUPABASE_KEY existe =", bool(supabase_key))
+
+    return create_client(supabase_url, supabase_key)
+
+
+supabase = criar_cliente_supabase()
 
 
 @app.route("/")
@@ -94,24 +118,34 @@ def upload():
     if "usuario" not in session:
         return redirect("/login")
 
-    foto = request.files["foto"]
+    if supabase is None:
+        flash("Supabase não está configurado. Verifique as variáveis de ambiente.")
+        return redirect("/admin")
 
-    if foto:
+    foto = request.files.get("foto")
 
-        import uuid
+    if foto and foto.filename:
 
         nome = f"{uuid.uuid4()}_{foto.filename}"
-
         arquivo = foto.read()
 
-        resposta = supabase.storage.from_("fotos").upload(
-            nome,
-            arquivo
-        )
+        try:
+            resposta = supabase.storage.from_(SUPABASE_BUCKET).upload(
+                nome,
+                arquivo,
+                {"content-type": foto.mimetype or "application/octet-stream"}
+            )
+        except Exception as erro:
+            print("Erro ao enviar imagem para o Supabase:", erro)
+            flash(
+                "Não foi possível enviar a imagem para o Supabase. "
+                "Confira SUPABASE_URL, SUPABASE_KEY e o bucket."
+            )
+            return redirect("/admin")
 
         print("UPLOAD:", resposta)
 
-        url = supabase.storage.from_("fotos").get_public_url(nome)
+        url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(nome)
 
         print("URL:", url)
 
