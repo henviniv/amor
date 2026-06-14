@@ -1,8 +1,10 @@
 from urllib.parse import urlparse
 import os
+import socket
 import sqlite3
 import uuid
 
+import httpx
 from flask import Flask, flash, render_template, request, redirect, session
 from supabase import create_client
 
@@ -24,6 +26,11 @@ def _normalizar_supabase_url(url):
     if not url:
         return None
 
+    # Permite configurar apenas o project ref do Supabase, por exemplo:
+    # SUPABASE_URL=abcdefghijklmnopqrst
+    if "://" not in url and "/" not in url and "." not in url:
+        url = f"https://{url}.supabase.co"
+
     if not url.startswith(("http://", "https://")):
         url = f"https://{url}"
 
@@ -31,7 +38,31 @@ def _normalizar_supabase_url(url):
     if not parsed_url.netloc:
         return None
 
-    return url
+    return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+
+def _host_supabase_resolve(supabase_url):
+    if not supabase_url:
+        return False
+
+    hostname = urlparse(supabase_url).hostname
+    if not hostname:
+        return False
+
+    try:
+        socket.getaddrinfo(hostname, 443)
+    except socket.gaierror:
+        return False
+
+    return True
+
+
+def _mensagem_erro_supabase_conexao():
+    return (
+        "Não foi possível conectar ao Supabase. Confira se a variável "
+        "SUPABASE_URL está no formato https://SEU_PROJECT_REF.supabase.co, "
+        "se a SUPABASE_KEY está correta e se o bucket existe."
+    )
 
 
 def criar_cliente_supabase():
@@ -47,6 +78,13 @@ def criar_cliente_supabase():
 
     print("SUPABASE_URL configurada para", supabase_url)
     print("SUPABASE_KEY existe =", bool(supabase_key))
+
+    if not _host_supabase_resolve(supabase_url):
+        print(
+            "Não foi possível resolver o host da SUPABASE_URL. "
+            "Use o formato https://SEU_PROJECT_REF.supabase.co."
+        )
+        return None
 
     return create_client(supabase_url, supabase_key)
 
@@ -119,7 +157,7 @@ def upload():
         return redirect("/login")
 
     if supabase is None:
-        flash("Supabase não está configurado. Verifique as variáveis de ambiente.")
+        flash(_mensagem_erro_supabase_conexao())
         return redirect("/admin")
 
     foto = request.files.get("foto")
@@ -135,6 +173,10 @@ def upload():
                 arquivo,
                 {"content-type": foto.mimetype or "application/octet-stream"}
             )
+        except httpx.ConnectError as erro:
+            print("Erro de conexão ao enviar imagem para o Supabase:", erro)
+            flash(_mensagem_erro_supabase_conexao())
+            return redirect("/admin")
         except Exception as erro:
             print("Erro ao enviar imagem para o Supabase:", erro)
             flash(
