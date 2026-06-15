@@ -5,8 +5,7 @@
 
     <link
       rel="stylesheet"
-      href="{{ url_for('static',
-filename='style.css') }}"
+      href="{{ url_for('static', filename='style.css') }}"
     />
   </head>
 
@@ -15,19 +14,20 @@ filename='style.css') }}"
 
     <h2 id="contador"></h2>
 
-    <a href="/login"> Área do Casal </a>
+    <a href="/login">Área do Casal</a>
 
     <div class="galeria">
       {% for foto in fotos %}
-
-      <img src="{{ foto[0] }}" />
-
+      <img src="{{ foto[0] }}" onclick="abrirFoto(this.src)" />
       {% endfor %}
     </div>
 
-    <script src="{{ url_for(
-'static',
-filename='script.js'
-) }}"></script>
+    <!-- Modal da Foto -->
+    <div id="modal" class="modal">
+      <span class="fechar" onclick="fecharFoto()">&times;</span>
+      <img id="fotoAmpliada" />
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
   </body>
 </html>

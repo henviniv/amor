@@ -13,3 +13,23 @@ function atualizarTempo() {
 setInterval(atualizarTempo, 1000);
 
 atualizarTempo();
+
+function abrirFoto(src) {
+  const modal = document.getElementById("modal");
+  const foto = document.getElementById("fotoAmpliada");
+
+  foto.src = src;
+  modal.style.display = "flex";
+}
+
+function fecharFoto() {
+  document.getElementById("modal").style.display = "none";
+}
+
+window.addEventListener("click", function (event) {
+  const modal = document.getElementById("modal");
+
+  if (event.target === modal) {
+    fecharFoto();
+  }
+});
