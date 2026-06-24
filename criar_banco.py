@@ -13,11 +13,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
 """)
 
 cursor.execute("""
-create table fotos (
-    id bigint generated always as identity primary key,
-    url text not null,
-    created_at timestamp default now()
-);
+CREATE TABLE IF NOT EXISTS fotos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL
+)
 """)
 
 # Usuários
