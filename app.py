@@ -95,16 +95,17 @@ supabase = criar_cliente_supabase()
 @app.route("/")
 def index():
 
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
+    if supabase is None:
+        return render_template("index.html", fotos=[])
 
-    cursor.execute("SELECT url FROM fotos")
+    resultado = supabase.table("fotos").select("*").execute()
 
-    fotos = cursor.fetchall()
+    fotos = [
+        (item["url"],)
+        for item in (resultado.data or [])
+    ]
 
     print("TOTAL DE FOTOS:", len(fotos))
-
-    conn.close()
 
     return render_template(
         "index.html",
@@ -193,16 +194,9 @@ def upload():
 
         print("URL:", url)
 
-        conn = sqlite3.connect("database.db")
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "INSERT INTO fotos (url) VALUES (?)",
-            (str(url),)
-        )
-
-        conn.commit()
-        conn.close()
+        supabase.table("fotos").insert({
+            "url": str(url)
+        }).execute()
 
     return redirect("/")
 
