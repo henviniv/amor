@@ -102,6 +102,8 @@ def index():
 
     fotos = cursor.fetchall()
 
+    print("TOTAL DE FOTOS:", len(fotos))
+
     conn.close()
 
     return render_template(
