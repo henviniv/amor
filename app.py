@@ -215,7 +215,7 @@ def upload():
 
     return redirect("/")
 
-    @app.route("/delete/<int:foto_id>", methods=["POST"])
+@app.route("/delete/<int:foto_id>", methods=["POST"])
 def delete(foto_id):
 
     if "usuario" not in session:
