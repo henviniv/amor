@@ -147,7 +147,18 @@ def admin():
     if "usuario" not in session:
         return redirect("/login")
 
-    return render_template("admin.html")
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id, url FROM fotos")
+    fotos = cursor.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "admin.html",
+        fotos=fotos
+    )
 
 
 @app.route("/upload", methods=["POST"])
@@ -203,6 +214,53 @@ def upload():
         conn.close()
 
     return redirect("/")
+
+    @app.route("/delete/<int:foto_id>", methods=["POST"])
+def delete(foto_id):
+
+    if "usuario" not in session:
+        return redirect("/login")
+
+    if supabase is None:
+        flash(_mensagem_erro_supabase_conexao())
+        return redirect("/admin")
+
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT url FROM fotos WHERE id = ?",
+        (foto_id,)
+    )
+
+    foto = cursor.fetchone()
+
+    if foto is None:
+        conn.close()
+        flash("Foto não encontrada.")
+        return redirect("/admin")
+
+    url = foto[0]
+
+    # Extrai o nome do arquivo da URL pública
+    nome_arquivo = url.split("/")[-1]
+
+    try:
+        supabase.storage.from_(SUPABASE_BUCKET).remove([nome_arquivo])
+    except Exception as erro:
+        print("Erro ao remover arquivo do Supabase:", erro)
+
+    cursor.execute(
+        "DELETE FROM fotos WHERE id = ?",
+        (foto_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash("Foto excluída com sucesso.")
+
+    return redirect("/admin")
 
 
 if __name__ == "__main__":
