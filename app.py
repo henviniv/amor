@@ -1,7 +1,6 @@
 from urllib.parse import urlparse
 import os
 import socket
-import sqlite3
 import uuid
 
 import httpx
@@ -13,9 +12,7 @@ app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY", "amor_vinicius_taiana")
 
-UPLOAD_FOLDER = "static/uploads"
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "fotos")
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
 def _normalizar_supabase_url(url):
@@ -92,22 +89,64 @@ def criar_cliente_supabase():
 supabase = criar_cliente_supabase()
 
 
+def _valor_storage(objeto, chave, padrao=None):
+    if isinstance(objeto, dict):
+        return objeto.get(chave, padrao)
+
+    return getattr(objeto, chave, padrao)
+
+
+def _listar_fotos_supabase():
+    """Busca as fotos diretamente no Storage para sobreviver a redeploys."""
+    if supabase is None:
+        return []
+
+    fotos = []
+    offset = 0
+    limit = 100
+
+    while True:
+        resposta = supabase.storage.from_(SUPABASE_BUCKET).list(
+            "",
+            {
+                "limit": limit,
+                "offset": offset,
+                "sortBy": {"column": "created_at", "order": "desc"},
+            },
+        )
+
+        if not resposta:
+            break
+
+        for arquivo in resposta:
+            nome = _valor_storage(arquivo, "name")
+            if not nome or _valor_storage(arquivo, "id") is None:
+                continue
+
+            fotos.append(
+                {
+                    "nome": nome,
+                    "url": supabase.storage.from_(SUPABASE_BUCKET).get_public_url(nome),
+                }
+            )
+
+        if len(resposta) < limit:
+            break
+
+        offset += limit
+
+    return fotos
+
+
 @app.route("/")
 def index():
+    try:
+        fotos = _listar_fotos_supabase()
+    except Exception as erro:
+        print("Erro ao listar fotos do Supabase:", erro)
+        fotos = []
 
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT url FROM fotos")
-
-    fotos = cursor.fetchall()
-
-    conn.close()
-
-    return render_template(
-        "index.html",
-        fotos=fotos
-    )
+    return render_template("index.html", fotos=fotos)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -118,23 +157,10 @@ def login():
         usuario = request.form["usuario"]
         senha = request.form["senha"]
 
-        conn = sqlite3.connect("database.db")
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT * FROM usuarios
-            WHERE username = ?
-            AND password = ?
-            """,
-            (usuario, senha)
-        )
-
-        user = cursor.fetchone()
-
-        conn.close()
-
-        if user:
+        if (
+            (usuario == "vinicius" and senha == "amoataiana")
+            or (usuario == "taiana" and senha == "amovinicius")
+        ):
             session["usuario"] = usuario
             return redirect("/admin")
 
@@ -147,18 +173,14 @@ def admin():
     if "usuario" not in session:
         return redirect("/login")
 
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
+    try:
+        fotos = _listar_fotos_supabase()
+    except Exception as erro:
+        print("Erro ao listar fotos do Supabase:", erro)
+        flash(_mensagem_erro_supabase_conexao())
+        fotos = []
 
-    cursor.execute("SELECT id, url FROM fotos")
-    fotos = cursor.fetchall()
-
-    conn.close()
-
-    return render_template(
-        "admin.html",
-        fotos=fotos
-    )
+    return render_template("admin.html", fotos=fotos)
 
 
 @app.route("/upload", methods=["POST"])
@@ -182,7 +204,7 @@ def upload():
             resposta = supabase.storage.from_(SUPABASE_BUCKET).upload(
                 nome,
                 arquivo,
-                {"content-type": foto.mimetype or "application/octet-stream"}
+                {"content-type": foto.mimetype or "application/octet-stream"},
             )
         except httpx.ConnectError as erro:
             print("Erro de conexão ao enviar imagem para o Supabase:", erro)
@@ -197,26 +219,13 @@ def upload():
             return redirect("/admin")
 
         print("UPLOAD:", resposta)
-
-        url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(nome)
-
-        print("URL:", url)
-
-        conn = sqlite3.connect("database.db")
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "INSERT INTO fotos (url) VALUES (?)",
-            (str(url),)
-        )
-
-        conn.commit()
-        conn.close()
+        flash("Foto enviada com sucesso.")
 
     return redirect("/")
 
-@app.route("/delete/<int:foto_id>", methods=["POST"])
-def delete(foto_id):
+
+@app.route("/delete/<path:nome_arquivo>", methods=["POST"])
+def delete(nome_arquivo):
 
     if "usuario" not in session:
         return redirect("/login")
@@ -225,38 +234,12 @@ def delete(foto_id):
         flash(_mensagem_erro_supabase_conexao())
         return redirect("/admin")
 
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT url FROM fotos WHERE id = ?",
-        (foto_id,)
-    )
-
-    foto = cursor.fetchone()
-
-    if foto is None:
-        conn.close()
-        flash("Foto não encontrada.")
-        return redirect("/admin")
-
-    url = foto[0]
-
-    # Extrai o nome do arquivo da URL pública
-    nome_arquivo = url.split("/")[-1]
-
     try:
         supabase.storage.from_(SUPABASE_BUCKET).remove([nome_arquivo])
     except Exception as erro:
         print("Erro ao remover arquivo do Supabase:", erro)
-
-    cursor.execute(
-        "DELETE FROM fotos WHERE id = ?",
-        (foto_id,)
-    )
-
-    conn.commit()
-    conn.close()
+        flash("Não foi possível excluir a foto do Supabase.")
+        return redirect("/admin")
 
     flash("Foto excluída com sucesso.")
 

@@ -18,7 +18,7 @@
 
     <div class="galeria">
       {% for foto in fotos %}
-      <img src="{{ foto[0] }}" onclick="abrirFoto(this.src)" />
+      <img src="{{ foto.url }}" onclick="abrirFoto(this.src)" />
       {% endfor %}
     </div>
 

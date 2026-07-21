@@ -61,9 +61,9 @@
       {% for foto in fotos %}
 
       <div class="foto">
-        <img src="{{ foto[1] }}" />
+        <img src="{{ foto.url }}" />
 
-        <form action="{{ url_for('delete', foto_id=foto[0]) }}" method="POST">
+        <form action="{{ url_for('delete', nome_arquivo=foto.nome) }}" method="POST">
           <button
             type="submit"
             onclick="return confirm('Deseja realmente excluir esta foto?');"
